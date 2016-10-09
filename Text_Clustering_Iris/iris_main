@@ -1,0 +1,35 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+
+from sklearn import datasets
+from sklearn.decomposition import PCA
+from sklearn import cluster
+from sklearn import preprocessing
+from heapq import nsmallest
+from sys import stdout
+from random import shuffle
+from datetime import datetime as dt
+from multiprocessing.pool import ThreadPool
+from multiprocessing import Pool, cpu_count
+from threading import Thread
+
+import random
+
+
+
+def read_in_data(filename):
+    print("reading in data")
+    df = pd.read_csv(filename, sep=' ', header=None)
+    return df
+if __name__ == '__main__':
+    data_file = 'iris.data'
+    data_df = read_in_data(data_file)
+    print(data_df)
+    x_df = preprocessing.normalize(data_df, norm='l2')    #l2 is least squares vs L1 least absolute deviation
+    clusters = kmeans_clustering(data=x_df, n_clusters=n, tolerance=default, random_state=random)
+
+
+
+
+
