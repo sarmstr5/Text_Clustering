@@ -6,6 +6,7 @@ from sklearn import datasets
 from sklearn.decomposition import PCA
 from sklearn import cluster
 from sklearn import preprocessing
+from sklearn import pairwise
 from heapq import nsmallest
 from sys import stdout
 import random
@@ -55,6 +56,8 @@ class shanes_kmeans:
         :param correct_classifier: numpy array of correct classifications
         :return numpy array of clustered classes
         '''
+        empty_v = np.ones(len(data))
+        df = data.insert(loc=len(data.columns), column='cluster', value=empty_v) #inserts 0s at end of df
         self.obj_d['data'] = data
         self.obj_d['correct_classifier'] = correct_classifier
         max_js = []
@@ -70,10 +73,10 @@ class shanes_kmeans:
     def compute_cluster_mean(x_k):
         pass
 
-    def initial_cluster_locs(data):
+    def initial_cluster_locations(data):
         k_clusters = self.obj_d['k_clusters']
         have_a_median_cluster = random.choice([True, False])
-        min_js = self.obj_d['min_js']
+        min_js = self.obj_d['min_js'] # min column values from data
         max_js = self.obj_d['max_js']
         initial_cluster_locs = [[0]*data.columns.max() for k in range(k_clusters)] # k by j 0 matrix
         for k in range(k_clusters):
@@ -83,14 +86,51 @@ class shanes_kmeans:
             for j in data.columns:
                 initial_cluster_locs[k][j] = random.randrange(min_js[j], max_js[j])
             return initial_cluster_locs
+        #can also try using hierarchical clustering first or choose points farthest away
 
     def find_min_k(cluster means, xi):
-        for
+        pass
+
     def partition_slices(end, n_partitions):
         slices = [slice(i, i + n_partitions) for i in range(0, end, n_partitions)]
         return slices
 
-    def cluster_rows(X, slice_i, cluster_means):
+    def cluster_rows(X_df, slice_i, cluster_means):
+        X = X_df.iloc[slice_i, :]
+        # cluster_means = self.obj_d['cluster_means']
+        # calc distance
+        for row in X_df:
+            find_closest_cluster(row, cluster_means)
+
+        # find min_k
+
+    def find_closest_cluster(row, cluster_means):
+        distances = []
+        for cluster in cluster_means:
+            distance = find_distance(cluster, row)
+
+    def find_cluster_proximity(cluster_locations, row_entity, similarity=True):
+        proximity = 0
+        k_num = 0
+        cluster = []
+        if(similarity):
+            #  proximity measured with cosine, goal is to maximize the sum of the cosine similarity of an
+            #  object to its cluster centroid
+            # i can use a weighted average for the position
+            i = 0
+            for k in cluster_locations:
+                prox = pairwise.cosine_similarity(row, cluster) #returns a scaler?
+                if prox > proximity:
+                    proximity = prox
+                    cluster = k
+                    row.cluster=i
+                i += 1
+
+        else:
+            # use different proximity metric such as bregman divergence
+            # proximity = 1/d
+            pass
+        return proximity
 
     def predict(self, X):
         """
@@ -100,7 +140,7 @@ class shanes_kmeans:
         """
         data = self.obj_d['data']
         #0 initialize random cluster means
-        cluster_locs = initial_cluster_locs(data)
+        cluster_locs = initial_cluster_locations(data)
         converged = False
         slices = partition_slices(len(data), cpu_count())   #list indices for multiprocessing
 
@@ -108,9 +148,13 @@ class shanes_kmeans:
             for row in data.values.tolist():
                 #1 for xi find k that minimizes D, closest cluster mean, set Znk =1, Znj = 0
                 pool = Pool()
+                # adds closest cluster
+                # what is this finding for me the best cluster....
                 results = pool.map(find_min_k, (cluster_locs, row))
+                pool.close()
+                pool.join()
 
-                #2 If all of assignments Znk remain unchanged from previous iterations
+                #2 If all of assignments Znk remain unchanged from previous iterations done
                 #3 Update cluster means uk
                 #4 Start over
 
