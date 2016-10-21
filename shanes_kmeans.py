@@ -79,13 +79,19 @@ class shanes_kmeans:
         min_js = self.obj_d['min_js'] # min column values from data
         max_js = self.obj_d['max_js']
         initial_cluster_locs = [[0]*data.columns.max() for k in range(k_clusters)] # k by j 0 matrix
-        for k in range(k_clusters):
-            if(k == 0 and have_a_median_cluster):
-                for j in data.columns:
-                    initial_cluster_locs[k][j] = (min_js[j] + max_js[j])/2  # may not be necessary calc if normalized
+        n_rows = len(data) #assuming df
+        #grab random points to be initial locations
+        if(have_a_median_cluster):
             for j in data.columns:
-                initial_cluster_locs[k][j] = random.randrange(min_js[j], max_js[j])
-            return initial_cluster_locs
+                initial_cluster_locs[k][j] = (min_js[j] + max_js[j])/2  # may not be necessary calc if normalized
+            random_xs = random.sample(range(nrows), k-1) #random index list w/out replacement
+            initial_cluster_locs = data[random_xs]  #locations are random from data points
+
+        else:
+            random_xs = random.sample(range(nrows), k) #random index list w/out replacement
+            initial_cluster_locs = data[random_xs]  #locations are random from data points
+
+        return initial_cluster_locs
         #can also try using hierarchical clustering first or choose points farthest away
 
     def find_min_k(cluster means, xi):
@@ -132,31 +138,73 @@ class shanes_kmeans:
             pass
         return proximity
 
-    def predict(self, X):
+    def kmeans(X, k_clusters, max_runs = 50, verbose=False, tolerance=1e-2):
+        """
+        Predict cluster for xi
+        :param X: data to be predicted
+        :param k_clusters: numnber of clusters
+        :param max_runs: maximum number of runs to find convergence
+        :param verbose: for print statements
+        :param tolerance: acceptable difference between centriods for convergence
+        :return numpy array labels
+        """
+
+        #create centriods
+        # initialize random cluster means
+        # set number of random seeds for running kmeans multiple times
+        # run single_run_means in parrellel
+        # create pool and use seeds as array to parrallel
+        # for numner of random seeds
+        # call kmeans and get inertia centers and number of iteranions
+        # join pool
+        # get track best run with metric SSB, silhouette coefficient, calinski-harabaz index
+
+    def single_run_kmeans(self, X):
         """
         Predict cluster for xi
         :param X: data to be predicted
         :return numpy array labels
         """
-        data = self.obj_d['data']
-        #0 initialize random cluster means
-        cluster_locs = initial_cluster_locations(data)
         converged = False
-        slices = partition_slices(len(data), cpu_count())   #list indices for multiprocessing
+        best_metric, best_x, best_centers = 0, 0, 0
+        data = self.obj_d['data']
+        centriods = initial_cluster_locations(data)
+        # distance to closest center
+        distances_to_center = np.zeros(X.shape[0])
 
-        while(not converged):
-            for row in data.values.tolist():
-                #1 for xi find k that minimizes D, closest cluster mean, set Znk =1, Znj = 0
-                pool = Pool()
-                # adds closest cluster
-                # what is this finding for me the best cluster....
-                results = pool.map(find_min_k, (cluster_locs, row))
-                pool.close()
-                pool.join()
+        # create list of closest neigbhors
 
-                #2 If all of assignments Znk remain unchanged from previous iterations done
-                #3 Update cluster means uk
-                #4 Start over
+        # assign remaining centriods to points with likely probability from each other
+        # compute distancves to centriods
+        # subtract mean from values
+        for i in maxiterations:
+            find SSB
+            find mean of centers
+            if SSB is less than min SSB
+                save SSB, x, and centers
+            check if means moved
+                if not break
+        return converged SSB, x, and centers
+
+
+        #3 Update cluster means uk
+        #4 Start over
+        # slices = partition_slices(len(data), cpu_count())   #list indices for multiprocessing
+
+        # while(not converged):
+        #     for row in data.values.tolist():
+        #         #1 for xi find k that minimizes D, closest cluster mean, set Znk =1, Znj = 0
+        #         pool = Pool()
+        #         # adds closest cluster
+        #         # what is this finding for me the best cluster....
+        #
+        #         # change to threading
+        #         results = pool.map(find_min_k, (cluster_locs, row))
+        #         pool.close()
+        #         pool.join()
+
+       #2 If all of assignments Znk remain unchanged from previous iterations done
+
 
 
 
