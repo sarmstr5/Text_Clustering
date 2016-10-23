@@ -1,0 +1,7 @@
+time	score	k	folds	feature_select	n_params
+0904	-783	7	10	SVD		100
+
+0934	-222258.0	7	10	SVD		100
+0938	-360846.0	7	10	SVD		600
+0945	-410192.0	7	10	SVD		1100
+0956	-435117.0	7	10	SVD		1600

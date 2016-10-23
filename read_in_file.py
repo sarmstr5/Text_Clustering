@@ -112,20 +112,20 @@ def create_articles(word_list, index_csc, verbose):
 
 def main():
     verbose = True
-    full_run = True
+    full_run = False
     create_articles_file = True
     if verbose:
         print('Starting File')
     if full_run:
         input_fn = 'input.txt'
         features_fn = 'features.txt'
-        csc_fn = "output_csc"
+        csc_fn = "input_csc"
         articles_fn = "output_text"
     else:
         input_fn = 'input_short.txt'
         features_fn = 'features.txt'
-        csc_fn = "output_short_csc"
-        articles_fn = "output_short_text"
+        csc_fn = "input_short_csc"
+        articles_fn = "input_short_text"
 
     # convert data to lists
     if verbose:
@@ -143,6 +143,7 @@ def main():
     # write cleaned data to file
     if verbose:
         print("Writing processed information to file")
+    print(bag_of_indexes_csc[:5])
     write_csc_to_disk(bag_of_indexes_csc, csc_fn, verbose)
     if create_articles_file:
         write_list_to_disk(articles, articles_fn, verbose)

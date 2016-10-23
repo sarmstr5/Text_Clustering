@@ -172,7 +172,8 @@ class shanes_kmeans:
         # distance to closest center
         distances_to_center = np.zeros(X.shape[0])
 
-        # create list of closest neigbhors
+        # create list of closest neigbhors to center
+
 
         # assign remaining centriods to points with likely probability from each other
         # compute distancves to centriods
