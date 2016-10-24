@@ -1,6 +1,7 @@
 from pylab import *
 import numpy as np
-from scipy.sparse import csr_matrix, csc_matrix
+from scipy.sparse import coo_matrix, csr_matrix, csc_matrix
+from sklearn import preprocessing
 import itertools
 
 # MAX_PARAMS = 126373 #based on features.txt
@@ -46,15 +47,15 @@ def jagged_list_to_csc(index_list, word_freqs, verbose):
         i += 1
         if (max_index > max_params):
             max_params = max_index  # words used are parameters
-        if verbose:
-            if not (len(indices) == len(frequencies) and len(frequencies) == len(row)):
-                print("----------ERROR SOMETHING NOT RIGHT, ARTICLE {}".format(i))
+        if not (len(indices) == len(frequencies) and len(frequencies) == len(row)):
+            print("----------ERROR SOMETHING NOT RIGHT, ARTICLE {}".format(i))
     if verbose:
         print("maxcolumn: {}".format(max_params))
-    csr = create_csr(param_lists, row_lists, value_lists, i, max_params, verbose)
-    return csc_matrix(csr)
+    coo = create_coo(param_lists, row_lists, value_lists, i, max_params, verbose)
+    return csr_matrix(coo)
 
-def create_csr(param_lists, row_lists, value_lists, num_rows, num_cols, verbose):
+#helper method creates sparse COOrdinate format matrix for fast construction
+def create_coo(param_lists, row_lists, value_lists, num_rows, num_cols, verbose):
     if verbose:
         print('Creating Sparse CSR Bag of words')
         print("rows{0} \t cols: {1}".format(num_rows, num_cols))
@@ -62,12 +63,11 @@ def create_csr(param_lists, row_lists, value_lists, num_rows, num_cols, verbose)
     flattened_params = np.array(list(itertools.chain.from_iterable(param_lists)))
     flattened_rows = np.array(list(itertools.chain.from_iterable(row_lists)))
     flattened_values = np.array(list(itertools.chain.from_iterable(value_lists)))
-    sparse_csr = csr_matrix((flattened_values, (flattened_rows, flattened_params)),  # three 1D lists
-                            shape=(num_rows, num_cols+1),
+    sparse_coo = coo_matrix((flattened_values, (flattened_rows, flattened_params)),  # three 1D lists
+                            shape=(num_rows, num_cols+1),   #cant remember why index is plus 1.  why not -1?
                             dtype=np.int8)  # creates a int compressed sparse row matrix
 
-    return sparse_csr
-
+    return sparse_coo
 # t = training data, x = test data
 def write_csc_to_disk(csc, fn, verbose):
     if verbose:
@@ -112,8 +112,8 @@ def create_articles(word_list, index_csc, verbose):
 
 def main():
     verbose = True
-    full_run = False
-    create_articles_file = True
+    full_run = True
+    create_articles_file = False
     if verbose:
         print('Starting File')
     if full_run:

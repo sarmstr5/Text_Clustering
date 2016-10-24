@@ -30,7 +30,7 @@ class shanes_kmeans:
 
     cluster_centers = []
     labels = []
-    inertia = 0
+    SSE = 0
 
     # note -  * tuple w/ positional args, ** dictionary/keyword args
     def __init__(self, k_clusters=3, tolerance=1e-4, random_state=4, max_iter=10, n_cores = cpu_count(), *args, **kwargs):
@@ -73,7 +73,7 @@ class shanes_kmeans:
     def compute_cluster_mean(x_k):
         pass
 
-    def initial_cluster_locations(data):
+    def initial_clusters(data):
         k_clusters = self.obj_d['k_clusters']
         have_a_median_cluster = random.choice([True, False])
         min_js = self.obj_d['min_js'] # min column values from data
@@ -94,7 +94,7 @@ class shanes_kmeans:
         return initial_cluster_locs
         #can also try using hierarchical clustering first or choose points farthest away
 
-    def find_min_k(cluster means, xi):
+    def find_min_k(cluster_means, xi):
         pass
 
     def partition_slices(end, n_partitions):
@@ -125,6 +125,7 @@ class shanes_kmeans:
             # can use a weighted average for the position
             i = 0
             for k in cluster_locations:
+                #use cdist!!!!!!
                 prox = pairwise.cosine_similarity(row, cluster) #returns a scaler?
                 if prox > proximity:
                     proximity = prox
@@ -155,23 +156,24 @@ class shanes_kmeans:
         # run single_run_means in parrellel
         # create pool and use seeds as array to parrallel
         # for numner of random seeds
-        # call kmeans and get inertia centers and number of iteranions
+        # call kmeans and get SSE centers and number of iteranions
         # join pool
         # get track best run with metric SSB, silhouette coefficient, calinski-harabaz index
 
-    def single_run_kmeans(self, X):
+    def kmeans_run(self, X):
         """
         Predict cluster for xi
         :param X: data to be predicted
         :return numpy array labels
         """
         converged = False
-        best_metric, best_x, best_centers = 0, 0, 0
+        best_metric, best_x, best_centers = 0, 0, 0 #return best score
         data = self.obj_d['data']
-        centriods = initial_cluster_locations(data)
-        # distance to closest center
-        distances_to_center = np.zeros(X.shape[0])
+        centriods = initial_clusters(data)
 
+        # distance to closest center
+        distances_to_cluster = np.zeros(X.shape[0])
+        x_labels = find_distances(x, centriods, proximity_type)
         # create list of closest neigbhors to center
 
 

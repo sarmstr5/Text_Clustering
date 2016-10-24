@@ -13,8 +13,10 @@ from scipy.sparse import csc_matrix, coo_matrix
 from sklearn.model_selection import cross_val_score, StratifiedKFold #cross validation packages
 from sklearn.decomposition import TruncatedSVD
 # from sklearn.feature_selection import SelectKBest, chi2
-from sklearn.metrics import silhouette_score, calinski_harabaz_score, roc_curve, auc
+from sklearn.metrics import silhouette_score, calinski_harabaz_score, make_scorer
 from sklearn.cluster import KMeans
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import Normalizer
 
 
 # N_PARAMETERS = 126373 #based on features.txt
@@ -62,32 +64,6 @@ def s_scoring(y, y_predicted):
     # F1 = 2 * (precision * recall) / (precision + recall), harmonic mean of precision and recall
     return f1_score(y, y_predicted, average='None')  # returns list score [pos neg], can use weighted
 
-def data_validation_score(train_csc, train_y, model, folds):
-    mean_f1 = cross_val_score(model, train_csc, train_y, cv=folds, scoring='f1_None').mean()
-    return mean_f1
-
-def evaluate_kNN(x_pos, y_pos, x, y, folds, n_params, runs, steps, k_neighbors):
-    print("in evaluate kNN")
-    neigh = KNeighborsClassifier(n_neighbors=k_neighbors)
-    svd_m = decomposition.TruncatedSVD(algorithm='randomized', n_components=n_params, n_iter=7)
-    scores = []
-    run = []
-    for i in np.arange(n_params, runs, steps):
-        # svd_model = svd_m.fit(x_pos, y_pos)
-        # x_svd = svd_model.transform(x)
-        # test_svd = svd_model.transform(test)
-        # neigh.fit(x_svd, y)
-        # val_list = cross_val_score(neigh, x_ch2, y, cv=folds, scoring='f1').mean()
-        neigh.n_neighbors = i
-        ch2_model = SelectKBest(chi2, k=i).fit(x, y)
-        x_ch2 = ch2_model.transform(x)
-        neigh.fit(x_ch2, y)
-        val_list = cross_val_score(neigh, x_ch2, y, cv=folds, scoring='f1').mean()
-        scores.append(val_list)
-        run.append(i)
-    evaluate_knn_csv(scores, k_neighbors, folds, chi2_n_params, run)
-    print(scores)
-
 ########## Cross Validation Methods ############
 def run_svd_cross_validation_runs(x, folds, min_n, max_n, steps, k_clusters, verbose):
     if verbose:
@@ -98,30 +74,45 @@ def run_svd_cross_validation_runs(x, folds, min_n, max_n, steps, k_clusters, ver
     while n < max_n:
         if verbose:
             print('n_components: {}\t time: {}'.format(n, get_time()))
-        x_svd = feature_selection(x, n, verbose)  # is this sparse?
-        evaluate_models(x_svd, k_clusters, folds, fn, feature_selection_method, n, verbose)
+        x_svd, svd_variance = feature_selection(x, n, verbose)  # is this sparse?
+        evaluate_models(x_svd, k_clusters, folds, fn, feature_selection_method, n, svd_variance, verbose)
         n += steps
 
 def run_param_cross_validation_runs(x, folds, min_k, max_k, steps, feature_selection_method, n_params, verbose):
     if verbose:
         print('Running Parameter Cross Validation: {}'.format(get_time()))
     fn = 'test_output/' + "cross_validation_param_results" + '.txt'
+    x_svd, svd_variance = feature_selection(x, n_params, verbose)  # is this sparse?
     k = min_k
     while k < max_k:
-        evaluate_models(x, k, folds, fn, feature_selection_method, n_params, verbose)
+        evaluate_models(x_svd, k, folds, fn, feature_selection_method, n_params, svd_variance, verbose)
         k += steps
 
-def evaluate_models(x, k, folds, fn, feature_select, n_params, verbose):
+def evaluate_models(x, k, folds, fn, feature_select, n_params, variance_explained, verbose):
     if verbose:
         print('In evaluate model: {}'.format(get_time()))
+
     km_model = get_kmeans(x, k, verbose=verbose)
+    km_x = km_model.fit(x)
+    x_labels = km_x.labels_
+
     if verbose:
         print('Getting score: {}'.format(get_time()))
-    score = cross_val_score(km_model, x, cv=10).mean() # cv = number of k folds
+        print('shape of x: {} shape of labels: {}'.format(x.shape, x_labels.shape))
+        print(x_labels)
+    # scorer = make_scorer(silhouette_score, metric='cosine')
+    score = cross_val_score(km_model, x, cv=folds).mean()
+    score_metric = 'SSE'
+    cosine = False
+    # if score_metric == 'silhouette':
+    #     score = silhouette_score(x, x_labels, metric='euclidean')
+    # else:
+    #     score = calinski_harabaz_score(x, x_labels)
     if verbose:
         print('Score: {}\t time: '.format(score, get_time()))
     with open(fn, 'a+') as csv:
-        csv.write("{0}\t{1}\t{2}\t{3}\t{4}\t\t{5}\n".format(get_time(), round(score,0), k, folds, feature_select, n_params))
+        csv.write("{0}\t{1}\t{2}\t{3}\t{4}\t\t{5}\t\t{6}\t\t{7}\t\t{8}\n".format(
+            get_time(), round(score, 2), k, folds, feature_select, n_params, round(variance_explained, 2), score_metric, cosine))
 
 ############# Modeling Methods ################
 def feature_selection(x, svd_n, verbose):
@@ -129,9 +120,14 @@ def feature_selection(x, svd_n, verbose):
         print('Performing SVD: {}'.format(get_time()))
     # ~100% of variance is explained by 800 variables
     svd_model = TruncatedSVD(algorithm='randomized', n_components=svd_n)
-    x_svd = svd_model.fit_transform(x)
+    normalizer = Normalizer(copy=False)
+    lsa = make_pipeline(svd_model, normalizer)
+    x_svd = lsa.fit_transform(x)
+    explained_variance = svd_model.explained_variance_ratio_.sum()
 
-    return x_svd
+    if verbose:
+        print("Explained variance of the SVD step: {}%".format(int(explained_variance * 100)))
+    return x_svd, explained_variance
 
 def predict_test_set_svd(n_params, test, x, y, x_pos, y_pos, error):
     svd_m = decomposition.TruncatedSVD(algorithm='randomized', n_components=n_params, n_iter=7)
@@ -151,8 +147,7 @@ def get_kmeans(x, k_clusters=8, n_rand_runs=10, prec_loops=300, tolerance=1e-5, 
     if verbose:
         print('Getting kmeans model: {}'.format(get_time()))
     kmeans_model = KMeans(n_clusters=k_clusters, n_init=n_rand_runs, max_iter=prec_loops, tol=tolerance, verbose=False, n_jobs=-1)
-    kmeans_x = kmeans_model.fit(x)
-    return kmeans_x
+    return kmeans_model
 
 ###########IO methods#############
 def data_fn(get_full_dataset, verbose):
@@ -191,7 +186,7 @@ def get_processed_data(get_full_dataset, get_txt_dense, verbose):
     return features, articles_csc, articles_df
 
 def clusters_to_csv(labels):
-    test_output = 'cluster_output/test_results{}.csv'.format(get_time())
+    test_output = 'cluster_output/test_results_silhouette{}.csv'.format(get_time())
     with open(test_output, 'w') as results:
         for y in labels:
             results.write('{0}\n'.format(y))
@@ -202,7 +197,7 @@ if __name__ == '__main__':
     get_full_dataset = True    # use truncated or full data set
     get_articles_dense = False  # get large text file
     cv_feature_selection = True # perform cross validation on feature selection
-    cv_model_params = True      # perform cross validation on model params
+    cv_model_params = False      # perform cross validation on model params
     do_data_viz = False         # create graphs at various steps
     do_print_results = False    # print output to file
 
@@ -230,9 +225,9 @@ if __name__ == '__main__':
             print('Performing Feature Selection: {}'.format(get_time()))
         # converts the word frequencies into floats neg and pos
         folds = 3
-        params = 100
-        max_params = 5000
-        steps = 500
+        params = 200
+        max_params = 600
+        steps = 25
         k_clusters = 7
         run_svd_cross_validation_runs(x, folds, params, max_params, steps, k_clusters, verbose)
 
@@ -258,10 +253,11 @@ if __name__ == '__main__':
         run_param_cross_validation_runs(x, folds, min_k, max_k, steps, 'SVD', n_params, verbose)
 
     else:
+        pass
         # Instantiating model parameters
-        k_clusters = 5
-        x_km = get_kmeans(x, k_clusters)
-        x_labels = x_km.predict(x)
+        # k_clusters = 5
+        # x_km = get_kmeans(x, k_clusters)
+        # x_labels = x_km.predict(x)
 
     # Print Results
     if do_print_results:
