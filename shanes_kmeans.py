@@ -30,7 +30,7 @@ class shanes_kmeans:
 
     cluster_centers = []
     labels = []
-    inertia = 0
+    SSE = 0
 
     # note -  * tuple w/ positional args, ** dictionary/keyword args
     def __init__(self, k_clusters=3, tolerance=1e-4, random_state=4, max_iter=10, n_cores = cpu_count(), *args, **kwargs):
@@ -47,8 +47,6 @@ class shanes_kmeans:
         if kwargs is not None:
             for key in kwargs:
                 self.obj_d[key] = kwargs[key]
-            if key == 'grid':
-                print("in grid part of kwargs")
 
     def fit(self, data, correct_classifier=None):
         '''
@@ -73,7 +71,7 @@ class shanes_kmeans:
     def compute_cluster_mean(x_k):
         pass
 
-    def initial_cluster_locations(data):
+    def initial_clusters(data):
         k_clusters = self.obj_d['k_clusters']
         have_a_median_cluster = random.choice([True, False])
         min_js = self.obj_d['min_js'] # min column values from data
@@ -94,7 +92,7 @@ class shanes_kmeans:
         return initial_cluster_locs
         #can also try using hierarchical clustering first or choose points farthest away
 
-    def find_min_k(cluster means, xi):
+    def find_min_k(cluster_means, xi):
         pass
 
     def partition_slices(end, n_partitions):
@@ -115,16 +113,31 @@ class shanes_kmeans:
         for cluster in cluster_means:
             distance = find_distance(cluster, row)
 
+    def score_classification(clusters):
+        # get metric SSB, silhouette coefficient, calinski-harabaz index
+        # http://scikit-learn.org/stable/auto_examples/cluster/plot_adjusted_for_chance_measures.html
+        """
+        There are multiple ways to define what is close such as least squared loss function or Mahanalobis distance
+        L least squares = (xi-xt)T * (xi-xj)
+        L mahanalobis = (xi-xj)T * A(xi-xj)
+        :param data: df of data to be clustered
+        :param k_clusters: int number of clusters
+        :param tolerance: float distance until convergence
+        :param random_state: int seed of random generator
+        :return: numpy array of clustered classes
+        """
+
     def find_cluster_proximity(cluster_locations, row_entity, similarity=True):
         proximity = 0
         k_num = 0
         cluster = []
         if(similarity):
-            #  proximity measured with cosine, goal is to maximize the sum of the cosine similarity of an
-            #  object to its cluster centroid
-            # i can use a weighted average for the position
+            # proximity measured with cosine, goal is to maximize the sum of the cosine similarity of an
+            # object to its cluster centroid
+            # can use a weighted average for the position
             i = 0
             for k in cluster_locations:
+                #use cdist!!!!!!
                 prox = pairwise.cosine_similarity(row, cluster) #returns a scaler?
                 if prox > proximity:
                     proximity = prox
@@ -142,7 +155,7 @@ class shanes_kmeans:
         """
         Predict cluster for xi
         :param X: data to be predicted
-        :param k_clusters: numnber of clusters
+        :param k_clusters: number of clusters
         :param max_runs: maximum number of runs to find convergence
         :param verbose: for print statements
         :param tolerance: acceptable difference between centriods for convergence
@@ -157,14 +170,7 @@ class shanes_kmeans:
         # for numner of random seeds
         # call kmeans and get inertia centers and number of iteranions
         # join pool
-        # get track best run with metric SSB, silhouette coefficient, calinski-harabaz index
 
-    def single_run_kmeans(self, X):
-        """
-        Predict cluster for xi
-        :param X: data to be predicted
-        :return numpy array labels
-        """
         converged = False
         best_metric, best_x, best_centers = 0, 0, 0
         data = self.obj_d['data']
@@ -173,51 +179,53 @@ class shanes_kmeans:
         distances_to_center = np.zeros(X.shape[0])
 
         # create list of closest neigbhors
+        best_metric, best_x, best_centers = 0, 0, 0 #return best score
+        data = self.obj_d['data']
+        centriods = initial_clusters(data)
 
-        # assign remaining centriods to points with likely probability from each other
-        # compute distancves to centriods
-        # subtract mean from values
-        for i in maxiterations:
-            find SSB
-            find mean of centers
-            if SSB is less than min SSB
-                save SSB, x, and centers
-            check if means moved
-                if not break
-        return converged SSB, x, and centers
-
-
-        #3 Update cluster means uk
-        #4 Start over
         # slices = partition_slices(len(data), cpu_count())   #list indices for multiprocessing
-
         # while(not converged):
         #     for row in data.values.tolist():
-        #         #1 for xi find k that minimizes D, closest cluster mean, set Znk =1, Znj = 0
         #         pool = Pool()
         #         # adds closest cluster
-        #         # what is this finding for me the best cluster....
+        #         # what is this finding for me, the best cluster....?
         #
         #         # change to threading
         #         results = pool.map(find_min_k, (cluster_locs, row))
         #         pool.close()
         #         pool.join()
 
-       #2 If all of assignments Znk remain unchanged from previous iterations done
-
-
-
-
-    def score_classification(clusters):
-    # http://scikit-learn.org/stable/auto_examples/cluster/plot_adjusted_for_chance_measures.html
+    def kmeans_run(self, X):
         """
-        There are multiple ways to define what is close such as least squared loss function or Mahanalobis distance
-        L least squares = (xi-xt)T * (xi-xj)
-        L mahanalobis = (xi-xj)T * A(xi-xj)
-        :param data: df of data to be clustered
-        :param k_clusters: int number of clusters
-        :param tolerance: float distance until convergence
-        :param random_state: int seed of random generator
-        :return: numpy array of clustered classes
+        Predict cluster for xi
+        :param X: data to be predicted
+        :return numpy array labels
         """
+
+        # distance to closest center
+        distances_to_cluster = np.zeros(X.shape[0])
+        # x_labels = find_distances(x, centriods, proximity_type)
+        # create list of closest neigbhors to center
+
+        #1 for xi find k that minimizes D, closest cluster mean, set Znk =1, Znj = 0
+        #2 Update cluster means uk
+        #3 If all of assignments Znk remain unchanged from previous iterations done
+        #4 Start over
+
+        # repeat some amount to find best clustering by metric
+        # for i in maxiterations:
+        #     find SSB
+        #     find mean of centers
+        #     if SSB is less than min SSB
+        #         save SSB, x, and centers
+        #     check if means moved
+        #         if not break
+        # return converged SSB, x, and centers
+
+
+
+
+
+
+
 
